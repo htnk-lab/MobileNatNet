@@ -532,20 +532,20 @@ class NatNetClient {
 
         val rigidBody = RigidBody(newId, pos, rot)
 
-        // Send information to any listener.
-        if (::rigidBodyListener.isInitialized) {
-            rigidBodyListener.invoke(newId, pos, rot)
-        }
+        var markerCount: Int? = null
+        var markerCountRange: IntRange? = null
+        var rbMarkerList: ArrayList<RigidBodyMarker>? = null
 
         // RB Marker Data ( Before version 3.0.  After Version 3.0 Marker data is in description )
         if (major < 3 && major != 0) {
             // Marker count (4 bytes)
-            val markerCount = bytesToInt(data.sliceArray(offset until offset + 4), ByteOrder.LITTLE_ENDIAN)
+            markerCount =
+                bytesToInt(data.sliceArray(offset until offset + 4), ByteOrder.LITTLE_ENDIAN)
             offset += 4
-            val markerCountRange = 0 until markerCount
+            markerCountRange = 0 until markerCount
             traceMf("\tMarker Count:", markerCount)
 
-            val rbMarkerList = arrayListOf<RigidBodyMarker>()
+            rbMarkerList = arrayListOf()
             for (i in markerCountRange) {
                 rbMarkerList.add(RigidBodyMarker())
             }
@@ -581,17 +581,20 @@ class NatNetClient {
             }
         }
 
+        var markerError: Double? = null
         if (major >= 2) {
-            val markerError = FloatValue.unpack(data.sliceArray(offset until offset + 4))
+            markerError = FloatValue.unpack(data.sliceArray(offset until offset + 4))
             offset += 4
             traceMf("\tMarker Error: %3.2f".format(markerError))
             rigidBody.error = markerError
         }
 
+        var trackingValid: Boolean? = null
+
         // Version 2.6 and later
         if (((major == 2) && (minor >= 6)) || major > 2) {
             val param = ByteBuffer.wrap(data.sliceArray(offset until offset + 2)).getShort().toInt()
-            val trackingValid = (param and 0x01) != 0
+            trackingValid = (param and (1 shl 8)) != 0
             offset += 2
             var isValidStr = "false"
             if (trackingValid) {
@@ -600,6 +603,12 @@ class NatNetClient {
             traceMf("\tTracking Valid: %s".format(isValidStr))
             rigidBody.trackingValid = trackingValid
         }
+
+        // Send information to any listener.
+        if (::rigidBodyListener.isInitialized) {
+            rigidBodyListener.invoke(newId, pos, rot, trackingValid)
+        }
+
         return Pair(offset, rigidBody)
     }
 
