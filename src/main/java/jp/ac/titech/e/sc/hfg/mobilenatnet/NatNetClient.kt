@@ -272,7 +272,7 @@ class NatNetClient {
         }
 
     // Set this to a callback method of your choice to receive per-rigid-body data at each frame.
-    lateinit var rigidBodyListener: (newId: Int, pos: ArrayList<Double>, rot: ArrayList<Double>) -> Unit
+    lateinit var rigidBodyListener: (newId: Int, pos: ArrayList<Double>, rot: ArrayList<Double>, trackingValid: Boolean?) -> Unit
     lateinit var newFrameListener: (dataDict: MutableMap<String, Any>) -> Unit
     lateinit var dataDescriptionsListener: (dataDescs: DataDescriptions) -> Unit
 
@@ -1272,7 +1272,8 @@ class NatNetClient {
 
             // Calibration Matrix 12x12 floats
             traceDd("Cal Matrix:")
-            val calMatrixTmp = ArrayList(Collections.nCopies(12, ArrayList(Collections.nCopies(12, 0.0))))
+            val calMatrixTmp =
+                ArrayList(Collections.nCopies(12, ArrayList(Collections.nCopies(12, 0.0))))
 
             for (i in 0 until 12) {
                 val calMatrixRow =
@@ -1303,9 +1304,17 @@ class NatNetClient {
             offset += (12 * 4)
             var o2 = 0
             traceDd("Corners:")
-            val cornersTmp = ArrayList(Collections.nCopies(4, ArrayList(Collections.nCopies(3, 0.0))))
+            val cornersTmp =
+                ArrayList(Collections.nCopies(4, ArrayList(Collections.nCopies(3, 0.0))))
             for (i in 0 until 4) {
-                traceDd("\t%3d %3.3e %3.3e %3.3e".format(i, corners[o2], corners[o2 + 1], corners[o2 + 2]))
+                traceDd(
+                    "\t%3d %3.3e %3.3e %3.3e".format(
+                        i,
+                        corners[o2],
+                        corners[o2 + 1],
+                        corners[o2 + 2]
+                    )
+                )
                 cornersTmp[i][0] = corners[o2]
                 cornersTmp[i][1] = corners[o2 + 1]
                 cornersTmp[i][2] = corners[o2 + 2]
@@ -1314,19 +1323,22 @@ class NatNetClient {
             fpDesc.setCorners(cornersTmp)
 
             // Plate Type int
-            val plateType = bytesToInt(data.sliceArray(offset until offset + 4), ByteOrder.LITTLE_ENDIAN)
+            val plateType =
+                bytesToInt(data.sliceArray(offset until offset + 4), ByteOrder.LITTLE_ENDIAN)
             offset += 4
             fpDesc.setPlateType(plateType)
             traceDd("Plate Type : ", plateType)
 
             // Channel Data Type int
-            val channelDataType = bytesToInt(data.sliceArray(offset until offset + 4), ByteOrder.LITTLE_ENDIAN)
+            val channelDataType =
+                bytesToInt(data.sliceArray(offset until offset + 4), ByteOrder.LITTLE_ENDIAN)
             offset += 4
             fpDesc.setChannelDataType(channelDataType)
             traceDd("Channel Data Type : ", channelDataType)
 
             // Number of Channels int
-            val numChannels = bytesToInt(data.sliceArray(offset until offset + 4), ByteOrder.LITTLE_ENDIAN)
+            val numChannels =
+                bytesToInt(data.sliceArray(offset until offset + 4), ByteOrder.LITTLE_ENDIAN)
             offset += 4
             traceDd("Number of Channels : ", numChannels)
 
@@ -1348,11 +1360,16 @@ class NatNetClient {
         }
     }
 
-    private fun unpackDeviceDescription(data: ByteArray, major: Int, minor: Int): Pair<Int, DeviceDescription?> {
+    private fun unpackDeviceDescription(
+        data: ByteArray,
+        major: Int,
+        minor: Int
+    ): Pair<Int, DeviceDescription?> {
         var offset = 0
         if (major >= 3) {
             // newId
-            val newId = bytesToInt(data.sliceArray(offset until offset + 4), ByteOrder.LITTLE_ENDIAN)
+            val newId =
+                bytesToInt(data.sliceArray(offset until offset + 4), ByteOrder.LITTLE_ENDIAN)
             offset += 4
             traceDd("\tID : ", newId)
 
@@ -1362,24 +1379,31 @@ class NatNetClient {
             traceDd("\tName : ", name)
 
             // Serial Number
-            val (serialNumber, _, _) = bytesPartition(data.sliceArray(offset until data.size), "\u0000")
+            val (serialNumber, _, _) = bytesPartition(
+                data.sliceArray(offset until data.size),
+                "\u0000"
+            )
             offset += serialNumber.length + 1
             traceDd("\tSerial Number : ", serialNumber)
 
             // Device Type int
-            val deviceType = bytesToInt(data.sliceArray(offset until offset + 4), ByteOrder.LITTLE_ENDIAN)
+            val deviceType =
+                bytesToInt(data.sliceArray(offset until offset + 4), ByteOrder.LITTLE_ENDIAN)
             offset += 4
             traceDd("Device Type : ", deviceType)
 
             // Channel Data Type int
-            val channelDataType = bytesToInt(data.sliceArray(offset until offset + 4), ByteOrder.LITTLE_ENDIAN)
+            val channelDataType =
+                bytesToInt(data.sliceArray(offset until offset + 4), ByteOrder.LITTLE_ENDIAN)
             offset += 4
             traceDd("Channel Data Type : ", channelDataType)
 
-            val deviceDesc = DeviceDescription(newId, name, serialNumber, deviceType, channelDataType)
+            val deviceDesc =
+                DeviceDescription(newId, name, serialNumber, deviceType, channelDataType)
 
             // Number of Channels int
-            val numChannels = bytesToInt(data.sliceArray(offset until offset + 4), ByteOrder.LITTLE_ENDIAN)
+            val numChannels =
+                bytesToInt(data.sliceArray(offset until offset + 4), ByteOrder.LITTLE_ENDIAN)
             offset += 4
             traceDd("Number of Channels ", numChannels)
 
@@ -1401,7 +1425,11 @@ class NatNetClient {
         }
     }
 
-    private fun unpackCameraDescription(data: ByteArray, major: Int, minor: Int): Pair<Int, CameraDescription> {
+    private fun unpackCameraDescription(
+        data: ByteArray,
+        major: Int,
+        minor: Int
+    ): Pair<Int, CameraDescription> {
         var offset = 0
         // Name
         val (name, _, _) = bytesPartition(data.sliceArray(offset until data.size), "\u0000")
@@ -1410,7 +1438,13 @@ class NatNetClient {
         // Position
         val position = Vector3.unpack(data.sliceArray(offset until offset + 12))
         offset += 12
-        traceDd("\tPosition   : [%3.2f, %3.2f, %3.2f]".format(position[0], position[1], position[2]))
+        traceDd(
+            "\tPosition   : [%3.2f, %3.2f, %3.2f]".format(
+                position[0],
+                position[1],
+                position[2]
+            )
+        )
 
         // Orientation
         val orientation = Quaternion.unpack(data.sliceArray(offset until offset + 16))
@@ -1439,12 +1473,14 @@ class NatNetClient {
         val dataDescs = DataDescriptions()
         var offset = 0
         // # of data sets to process
-        val datasetCount = bytesToInt(data.sliceArray(offset until offset + 4), ByteOrder.LITTLE_ENDIAN)
+        val datasetCount =
+            bytesToInt(data.sliceArray(offset until offset + 4), ByteOrder.LITTLE_ENDIAN)
         offset += 4
         traceDd("Dataset Count : ", datasetCount)
         for (i in 0 until datasetCount) {
             traceDd("Dataset ", i)
-            val dataType = bytesToInt(data.sliceArray(offset until offset + 4), ByteOrder.LITTLE_ENDIAN)
+            val dataType =
+                bytesToInt(data.sliceArray(offset until offset + 4), ByteOrder.LITTLE_ENDIAN)
             offset += 4
 //            dataTmp=None
             when (dataType) {
@@ -1587,12 +1623,23 @@ class NatNetClient {
         )
 
         traceMf(
-            "ServerVersion ", serverVersion[0], " ", serverVersion[1], " ", serverVersion[2], " ", serverVersion[3]
+            "ServerVersion ",
+            serverVersion[0],
+            " ",
+            serverVersion[1],
+            " ",
+            serverVersion[2],
+            " ",
+            serverVersion[3]
         )
         return offset
     }
 
-    private fun commandThreadFunction(inSocket: DatagramSocket, stop: () -> Boolean, gprintLevel: () -> Int): Int {
+    private fun commandThreadFunction(
+        inSocket: DatagramSocket,
+        stop: () -> Boolean,
+        gprintLevel: () -> Int
+    ): Int {
         val messageIdDict = mutableMapOf<String, Int>()
         if (!useMulticast) {
             inSocket.soTimeout = 2000
@@ -1660,7 +1707,11 @@ class NatNetClient {
         return 0
     }
 
-    private fun dataThreadFunction(inSocket: DatagramSocket, stop: () -> Boolean, gprintLevel: () -> Int): Int {
+    private fun dataThreadFunction(
+        inSocket: DatagramSocket,
+        stop: () -> Boolean,
+        gprintLevel: () -> Int
+    ): Int {
         val messageIdDict = mutableMapOf<String, Int>()
         var data = ByteArray(0)
         // 64k buffer size
@@ -1779,21 +1830,37 @@ class NatNetClient {
         } else if (messageId == NAT_SERVERINFO) {
             trace("Message ID  : %3d NAT_SERVERINFO".format(messageId))
             trace("Packet Size : ", packetSize)
-            offset += unpackServerInfo(data.sliceArray(offset until data.size), packetSize, major, minor)
+            offset += unpackServerInfo(
+                data.sliceArray(offset until data.size),
+                packetSize,
+                major,
+                minor
+            )
 
         } else if (messageId == NAT_RESPONSE) {
             trace("Message ID  : %3d NAT_RESPONSE".format(messageId))
             trace("Packet Size : ", packetSize)
             if (packetSize == 4) {
-                val commandResponse = bytesToInt(data.sliceArray(offset until offset + 4), ByteOrder.LITTLE_ENDIAN)
+                val commandResponse =
+                    bytesToInt(data.sliceArray(offset until offset + 4), ByteOrder.LITTLE_ENDIAN)
                 offset += 4
                 trace("Command response: %d".format(commandResponse))
             } else {
                 val showRemainder = false
-                val (message, separator, remainder) = bytesPartition(data.sliceArray(offset until data.size), "\u0000")
+                val (message, separator, remainder) = bytesPartition(
+                    data.sliceArray(offset until data.size),
+                    "\u0000"
+                )
                 offset += message.length + 1
                 if (showRemainder) {
-                    trace("Command response:", message, " separator:", separator, " remainder:", remainder)
+                    trace(
+                        "Command response:",
+                        message,
+                        " separator:",
+                        separator,
+                        " remainder:",
+                        remainder
+                    )
                 } else {
                     trace("Command response:", message)
                 }
@@ -1818,7 +1885,12 @@ class NatNetClient {
         return messageId
     }
 
-    fun sendRequest(inSocket: DatagramSocket, command: Int, commandStr: String, address: SocketAddress): Int {
+    fun sendRequest(
+        inSocket: DatagramSocket,
+        command: Int,
+        commandStr: String,
+        address: SocketAddress
+    ): Int {
         // Compose the message in our known message format
         var commandStr = commandStr
         var packetSize = 0
@@ -1864,7 +1936,12 @@ class NatNetClient {
         while (nTries >= 1) {
             nTries -= 1
             retVal =
-                sendRequest(commandSocket, NAT_REQUEST, commandStr, InetSocketAddress(serverIpAddress, commandPort))
+                sendRequest(
+                    commandSocket,
+                    NAT_REQUEST,
+                    commandStr,
+                    InetSocketAddress(serverIpAddress, commandPort)
+                )
             if ((retVal != -1)) {
                 break
             }
@@ -1884,7 +1961,12 @@ class NatNetClient {
     }
 
     fun sendKeepAlive(inSocket: DatagramSocket, serverIpAddress: String, serverPort: Int): Int {
-        return sendRequest(inSocket, NAT_KEEPALIVE, "", InetSocketAddress(serverIpAddress, serverPort))
+        return sendRequest(
+            inSocket,
+            NAT_KEEPALIVE,
+            "",
+            InetSocketAddress(serverIpAddress, serverPort)
+        )
     }
 
 //    fun getCommandPort(): Int {
@@ -1929,15 +2011,26 @@ class NatNetClient {
         dataThread.start()
 
         // Create a separate thread for receiving command packets
-        commandThread = Thread { commandThreadFunction(commandSocket, { stopThreads }, { printLevel }) }
+        commandThread =
+            Thread { commandThreadFunction(commandSocket, { stopThreads }, { printLevel }) }
         commandThread.start()
 
         // Required for setup
         // Get NatNet and server versions
-        var ret = sendRequest(commandSocket, NAT_CONNECT, "", InetSocketAddress(serverIpAddress, commandPort))
+        var ret = sendRequest(
+            commandSocket,
+            NAT_CONNECT,
+            "",
+            InetSocketAddress(serverIpAddress, commandPort)
+        )
         println("Try to get NatNet and server versions, return $ret")
 
-        ret = sendRequest(commandSocket, NAT_REQUEST_MODELDEF, "", InetSocketAddress(serverIpAddress, commandPort))
+        ret = sendRequest(
+            commandSocket,
+            NAT_REQUEST_MODELDEF,
+            "",
+            InetSocketAddress(serverIpAddress, commandPort)
+        )
         println("Try to get NatNet model definition, return $ret")
 
         //#Example Commands
