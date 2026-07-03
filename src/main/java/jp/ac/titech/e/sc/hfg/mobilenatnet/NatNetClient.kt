@@ -259,10 +259,20 @@ class NatNetClient {
     var multicastAddress = "239.255.42.99"
 
     // NatNet Command channel
-    val commandPort = 1510
+    var commandPort = 1510
+        set(value) {
+            if (!isLocked) {
+                field = value
+            }
+        }
 
     // NatNet Data channel
-    val dataPort = 1511
+    var dataPort = 1511
+        set(value) {
+            if (!isLocked) {
+                field = value
+            }
+        }
 
     var useMulticast = true
         set(value) {
